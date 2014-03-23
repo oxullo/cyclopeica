@@ -9,6 +9,7 @@ import libavg
 from libavg.app import keyboardmanager as kbmgr
 
 SEGPOS_CONFIG = 'segpos.json'
+SEGMAP_CONFIG = 'segmap.json'
 ASCIISET = ''.join([chr(c) for c in xrange(32, 127)])
 
 
@@ -39,11 +40,13 @@ class MyDiv(libavg.app.MainDiv):
                 font='monospace', parent=self)
 
         self.loadSegPos()
+        self.loadSegMap()
         self.reset()
         self.changeState(self.STATE_IDLE)
         kbmgr.bindKeyDown('b', self.startSegPos, 'Adjust segment trigger positions')
         kbmgr.bindKeyDown('r', self.reset, 'Reset segment states')
         kbmgr.bindKeyDown('a', self.setAllActive, 'Set all segment states to active')
+        kbmgr.bindKeyDown('s', self.saveSegMap, 'Save segment map')
         kbmgr.bindKeyDown('up', self.onUp, 'Next char')
         kbmgr.bindKeyDown('down', self.onDown, 'Previous char')
 
@@ -55,10 +58,20 @@ class MyDiv(libavg.app.MainDiv):
         self.loadChar(0)
 
     def loadChar(self, index):
+        active = []
+        for id, segment in self.states.iteritems():
+            if segment.active:
+                active.append(id)
+        self.segMap[self.currentChar] = active
+
         self.currentChar = ASCIISET[index]
         self.info.text = 'Selected char %s' % self.currentChar
         self.chars.text = ASCIISET.replace(self.currentChar, '[%s]' % self.currentChar)
-        
+
+        self.reset()
+        for id in self.segMap[self.currentChar]:
+            self.states[id].active = True
+
     def onUp(self):
         pos = ASCIISET.find(self.currentChar)
         if pos + 1 > len(ASCIISET) - 1:
@@ -103,6 +116,18 @@ class MyDiv(libavg.app.MainDiv):
     def onTriggered(self, id):
         self.states[id].active = not self.states[id].active
 
+    def loadSegMap(self):
+        if os.path.isfile(SEGMAP_CONFIG):
+            self.segMap = json.load(open(SEGMAP_CONFIG))
+            print 'Segment map loaded from %s' % SEGMAP_CONFIG
+        else:
+            print 'Segment map config not found, initializing'
+            self.segMap = dict([(ch, []) for ch in ASCIISET])
+
+    def saveSegMap(self):
+        json.dump(self.segMap, open(SEGMAP_CONFIG, 'w'))
+        print 'Segmap config saved to %s' % SEGMAP_CONFIG
+
     def loadSegPos(self):
         if os.path.isfile(SEGPOS_CONFIG):
             segPosStr = json.load(open(SEGPOS_CONFIG))
@@ -111,7 +136,7 @@ class MyDiv(libavg.app.MainDiv):
                 self.segPos[int(k)] = v
             print 'Segment positions loaded from %s' % SEGPOS_CONFIG
         else:
-            print 'Segpos config not found, initializing'
+            print 'Segment positions config not found, initializing'
             self.segPos = dict([(seg, (0, 0)) for seg in self.states.keys()])
 
     def saveSegPos(self):
