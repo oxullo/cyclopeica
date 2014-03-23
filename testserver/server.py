@@ -7,7 +7,8 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-phrases = [line.strip() for line in open('phrases.txt').read().split('\n')]
+phrases = [line.strip() for line in open('phrases.txt').read().split('\n')
+        if line.strip()]
 
 @app.route('/')
 def phraseize():
