@@ -9,7 +9,7 @@ import libavg
 from libavg.app import keyboardmanager as kbmgr
 
 SEGPOS_CONFIG = 'segpos.json'
-SEGMAP_CONFIG = 'segmap.json'
+SEGMAP_CONFIG = '../segmap.json'
 ASCIISET = ''.join([chr(c) for c in xrange(32, 127)])
 
 
@@ -23,12 +23,12 @@ class MyDiv(libavg.app.MainDiv):
         self.currentSegment = None
         self.currentChar = None
 
-        base = libavg.avg.ImageNode(href='img/base.png', parent=self)
+        base = libavg.avg.ImageNode(href='../img/base.png', parent=self)
         base.subscribe(base.CURSOR_DOWN, self.onMouseDown)
 
         self.states = {}
         for i in xrange(0, 23):
-            wanted = 'img/states/%02d.png' % i
+            wanted = '../img/states/%02d.png' % i
             if os.path.isfile(wanted):
                 self.states[i] = libavg.avg.ImageNode(href=wanted, parent=self)
 
