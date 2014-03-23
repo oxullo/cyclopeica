@@ -3,11 +3,13 @@
 
 import os
 import json
+import math
 
 import libavg
 from libavg.app import keyboardmanager as kbmgr
 
 SEGPOS_CONFIG = 'segpos.json'
+ASCIISET = ''.join([chr(c) for c in xrange(32, 127)])
 
 
 class MyDiv(libavg.app.MainDiv):
@@ -17,7 +19,8 @@ class MyDiv(libavg.app.MainDiv):
     def onInit(self):
         self.state = None
         self.todo = []
-        self.current = None
+        self.currentSegment = None
+        self.currentChar = None
 
         base = libavg.avg.ImageNode(href='img/base.png', parent=self)
         base.subscribe(base.CURSOR_DOWN, self.onMouseDown)
@@ -29,7 +32,11 @@ class MyDiv(libavg.app.MainDiv):
                 self.states[i] = libavg.avg.ImageNode(href=wanted, parent=self)
 
         self.stateText = libavg.avg.WordsNode(text='STATE', parent=self)
-        self.info = libavg.avg.WordsNode(text='NO INFO', pos=(0, 18), parent=self)
+        self.info = libavg.avg.WordsNode(text='NO INFO', rawtextmode=True,
+                pos=(0, 18), parent=self)
+        self.chars = libavg.avg.WordsNode(text=ASCIISET, pos=(0, self.size.y),
+                rawtextmode=True, fontsize=12, angle=-math.pi / 2, pivot=(0, 0),
+                font='monospace', parent=self)
 
         self.loadSegPos()
         self.reset()
@@ -37,11 +44,32 @@ class MyDiv(libavg.app.MainDiv):
         kbmgr.bindKeyDown('b', self.startSegPos, 'Adjust segment trigger positions')
         kbmgr.bindKeyDown('r', self.reset, 'Reset segment states')
         kbmgr.bindKeyDown('a', self.setAllActive, 'Set all segment states to active')
+        kbmgr.bindKeyDown('up', self.onUp, 'Next char')
+        kbmgr.bindKeyDown('down', self.onDown, 'Previous char')
 
         for id, pos in self.segPos.iteritems():
             trigger = libavg.avg.CircleNode(r=10, fillopacity=0.4, fillcolor='ff3333',
                     opacity=0, pos=pos, parent=self)
             trigger.subscribe(trigger.CURSOR_DOWN, lambda e, id=id: self.onTriggered(id))
+
+        self.loadChar(0)
+
+    def loadChar(self, index):
+        self.currentChar = ASCIISET[index]
+        self.info.text = 'Selected char %s' % self.currentChar
+        self.chars.text = ASCIISET.replace(self.currentChar, '[%s]' % self.currentChar)
+        
+    def onUp(self):
+        pos = ASCIISET.find(self.currentChar)
+        if pos + 1 > len(ASCIISET) - 1:
+            return
+        self.loadChar(pos + 1)
+
+    def onDown(self):
+        pos = ASCIISET.find(self.currentChar)
+        if pos - 1 < 0:
+            return
+        self.loadChar(pos - 1)
 
     def changeState(self, newState):
         self.state = newState
@@ -58,18 +86,18 @@ class MyDiv(libavg.app.MainDiv):
         if not self.todo:
             print 'Done with segment triggers'
             kbmgr.unbindKeyDown('n')
-            self.current = None
+            self.currentSegment = None
             self.info.text = 'Done'
             self.changeState(self.STATE_IDLE)
             self.saveSegPos()
         else:
-            self.current = self.todo.pop(0)
-            self.info.text = 'Click segment %d' % self.current
+            self.currentSegment = self.todo.pop(0)
+            self.info.text = 'Click segment %d' % self.currentSegment
 
     def onMouseDown(self, event):
         if self.state == self.STATE_SETTING_SEGPOS:
-            print 'Current segment: %d pos: %s' % (self.current, event.pos)
-            self.segPos[self.current] = tuple(event.pos)
+            print 'Current segment: %d pos: %s' % (self.currentSegment, event.pos)
+            self.segPos[self.currentSegment] = tuple(event.pos)
             self.nextSegPos()
 
     def onTriggered(self, id):
